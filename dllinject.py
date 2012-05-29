@@ -239,6 +239,12 @@ and then executes it
                                         None
                                         )
 
+    def injectshellcodefromfile(self, file):
+        fh=open(file,'rb')
+        shellcode=fh.read()
+        fh.close()
+        self.injectshellcode(shellcode)
+
     def terminate(self, code=0):
         """This function terminates the process from the current handle"""
         self.kernel32.TerminateProcess(
