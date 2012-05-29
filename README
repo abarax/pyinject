@@ -10,5 +10,5 @@ import dllinject
 
 proc=dllinject.Process(pe="C:\\WINDOWS\\system32\\notepad.exe")
 proc.inject("HelloWorld.dll")
-proc.inject("\xeb\xfe")
+proc.injectshellcode("\xeb\xfe")
 proc.terminate()
