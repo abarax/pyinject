@@ -1,0 +1,14 @@
+A python class that allows for the injection of shellcode or dlls into windows processes
+
+python 2.7
+
+probably will not work on Vista/7
+
+Example:
+
+import dllinject
+
+proc=dllinject.Process(pe="C:\\WINDOWS\\system32\\notepad.exe")
+proc.inject("HelloWorld.dll")
+proc.inject("\xeb\xfe")
+proc.terminate()
