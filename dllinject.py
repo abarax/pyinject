@@ -203,7 +203,7 @@ and then executes it
                                         len(loaddll),
                                         None
                                         )
-        self.kernel32.CreateRemoteThread(
+        thread = self.kernel32.CreateRemoteThread(
                                         self.handle,
                                         None,
                                         0,
@@ -212,6 +212,16 @@ and then executes it
                                         0,
                                         None
                                         )
+        self.kernel32.WaitForSingleObject(
+                                        thread,
+                                        -1
+                                        )
+        self.kernel32.VirtualFreeEx(
+                                    self.handle,
+                                    shellcodeaddress,
+                                    len(loaddll),
+                                    0x8000
+                                    )
 
     def injectshellcode(self, shellcode):
         """This function merely executes what it is given"""
@@ -229,7 +239,7 @@ and then executes it
                                         len(shellcode),
                                         None
                                         )
-        self.kernel32.CreateRemoteThread(
+        thread = self.kernel32.CreateRemoteThread(
                                         self.handle,
                                         None,
                                         0,
@@ -240,6 +250,7 @@ and then executes it
                                         )
 
     def injectshellcodefromfile(self, file):
+        """This function merely executes what it is given as a raw file"""
         fh=open(file,'rb')
         shellcode=fh.read()
         fh.close()
