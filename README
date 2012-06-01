@@ -3,6 +3,8 @@ A python class that allows for the injection of shellcode or dlls into windows p
 Also, semi-pure python kitrap0d vdmallowed.exe is pure python, vdmexploit is 
 wrapped in another dll which loads it from a string on inject
 
+MemoryModule came from https://github.com/fancycode/MemoryModule/ and modified slightly
+
 may or may not work on Vista/7
 
 Example:
