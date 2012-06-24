@@ -312,11 +312,14 @@ specifying stack rather than pushing and calling"""
                                         None
                                         )
 
-    def injectshellcodefromfile(self, file):
+    def injectshellcodefromfile(self, file, bzipd=False):
         """This function merely executes what it is given as a raw file"""
         fh=open(file,'rb')
         shellcode=fh.read()
         fh.close()
+        if bzipd:
+            import bz2
+            shellcode=bz2.decompress(shellcode)
         self.injectshellcode(shellcode)
 
     def terminate(self, code=0):
